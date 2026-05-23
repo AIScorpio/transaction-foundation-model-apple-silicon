@@ -5,5 +5,9 @@ data/outputs/
 models/decoder-demo/
 tmp_nb_rerun_results/
 tmp_nb_test_results/
+.DS_Store
+.ipynb_checkpoints/
+**/.ipynb_checkpoints/
+_brainstorm_/
 src/__pycache__/
 src/tokenizer/__pycache__/

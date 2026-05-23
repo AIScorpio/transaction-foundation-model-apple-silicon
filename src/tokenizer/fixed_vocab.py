@@ -24,9 +24,7 @@ Used for: HOUR (0-23), DOW (0-6), MONTH (1-12), CARD (0-9),
           ZIP3 (0-999), CUST (0-2999).
 """
 
-import cudf
-import cupy as cp
-
+from .backend import Series
 from .base import BaseTokenizer
 
 
@@ -39,14 +37,13 @@ class FixedVocabTokenizer(BaseTokenizer):
         min_val: int = 0,
         max_val: int = 23,
         pad_width: int = 0,
-        stream: cp.cuda.Stream = None,
+        stream=None,
     ):
         super().__init__()
         self.prefix = prefix
         self.min_val = min_val
         self.max_val = max_val
         self.pad_width = pad_width
-        self.stream = stream
         self._vocab_built = False
 
     def build_vocab(self, column_data=None) -> None:
@@ -56,8 +53,7 @@ class FixedVocabTokenizer(BaseTokenizer):
         }
         self._vocab_built = True
 
-    def tokenize(self, column_data) -> cudf.Series:
-        """*column_data* must be an integer cudf.Series within [min_val, max_val]."""
+    def tokenize(self, column_data):
         int_vals = column_data.astype("int32").clip(self.min_val, self.max_val)
         return int_vals.map(self._idx_to_token)
 

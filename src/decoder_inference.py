@@ -66,8 +66,12 @@ class HuggingFaceDecoderInference:
 
         if device:
             self.device = torch.device(device)
+        elif torch.backends.mps.is_available():
+            self.device = torch.device("mps")
+        elif torch.cuda.is_available():
+            self.device = torch.device("cuda")
         else:
-            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            self.device = torch.device("cpu")
 
         logger.info(f"Initializing HuggingFaceDecoderInference on {self.device}")
 
@@ -179,7 +183,9 @@ class HuggingFaceDecoderInference:
         n_samples = len(padded_ids)
         embed_dim = self.embedding_dim
 
-        input_tensor = torch.from_numpy(padded_ids).pin_memory()
+        input_tensor = torch.from_numpy(padded_ids)
+        if self.device.type == "cuda":
+            input_tensor = input_tensor.pin_memory()
 
         gpu_embeddings = torch.empty(
             (n_samples, embed_dim),
@@ -206,10 +212,16 @@ class HuggingFaceDecoderInference:
 
             gpu_embeddings[i:batch_end] = batch_embeddings.float()
 
-        torch.cuda.synchronize()
+        if self.device.type == "cuda":
+            torch.cuda.synchronize()
+        elif self.device.type == "mps":
+            torch.mps.synchronize()
         embeddings = gpu_embeddings.cpu().numpy()
 
         del gpu_embeddings
-        torch.cuda.empty_cache()
+        if self.device.type == "cuda":
+            torch.cuda.empty_cache()
+        elif self.device.type == "mps":
+            torch.mps.empty_cache()
 
         return embeddings

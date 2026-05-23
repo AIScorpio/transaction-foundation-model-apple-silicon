@@ -28,10 +28,9 @@ Data is never stored in the constructor.
 
 from typing import Dict, List, Optional, Tuple
 
-import cudf
-import cupy as cp
 import numpy as np
 
+from .backend import Series, to_pandas, get_values
 from .base import BaseTokenizer
 
 
@@ -45,7 +44,7 @@ class MappingTokenizer(BaseTokenizer):
         values: Optional[List] = None,
         ranges: Optional[List[Tuple[int, int, str]]] = None,
         default: str = "UNK",
-        stream: cp.cuda.Stream = None,
+        stream=None,
     ):
         """
         Parameters
@@ -66,7 +65,6 @@ class MappingTokenizer(BaseTokenizer):
         super().__init__()
         self.prefix = prefix
         self.default = default
-        self.stream = stream
         self._vocab_built = False
 
         self._mapping_cfg = mapping
@@ -121,32 +119,30 @@ class MappingTokenizer(BaseTokenizer):
 
         self._vocab_built = True
 
-    def tokenize(self, column_data) -> cudf.Series:
+    def tokenize(self, column_data):
         if self._mode == "range":
             return self._tokenize_range(column_data)
         return self._tokenize_direct(column_data)
 
-    def _tokenize_direct(self, column_data) -> cudf.Series:
-        """Map values through the direct dict, prepend prefix."""
+    def _tokenize_direct(self, column_data):
         s = column_data.astype(str) if not hasattr(column_data, 'str') or column_data.dtype != 'object' else column_data
-        host = s.to_pandas()
+        host = to_pandas(s)
         if self._direct_map:
             mapped = host.map(self._direct_map).fillna(self.default)
         else:
             mapped = host.fillna(self.default)
         result = self.prefix + "_" + mapped.astype(str)
-        return cudf.Series(result.values, index=column_data.index)
+        return Series(result.values, index=column_data.index)
 
-    def _tokenize_range(self, column_data) -> cudf.Series:
-        """Map integer values via range lookup (vectorized with numpy)."""
-        vals = column_data.values.get() if hasattr(column_data.values, 'get') else column_data.values
+    def _tokenize_range(self, column_data):
+        vals = get_values(column_data.values)
         vals = np.asarray(vals, dtype=np.int64)
 
         result = np.full(len(vals), f"{self.prefix}_{self.default}", dtype=object)
         for lo, hi, label in self._range_lookup:
             mask = (vals >= lo) & (vals <= hi)
             result[mask] = f"{self.prefix}_{label}"
-        return cudf.Series(result, index=column_data.index)
+        return Series(result, index=column_data.index)
 
     def __repr__(self) -> str:
         status = "built" if self._vocab_built else "not built"

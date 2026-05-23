@@ -22,7 +22,8 @@ __init__; data flows only through build_vocab() and tokenize().
 """
 
 from abc import ABC, abstractmethod
-import cudf
+
+from .backend import Series as _SeriesType
 
 
 class BaseTokenizer(ABC):
@@ -79,7 +80,7 @@ class BaseTokenizer(ABC):
         for fixed-vocab tokenizers) or from data passed to fit()."""
 
     @abstractmethod
-    def tokenize(self, column_data) -> cudf.Series:
+    def tokenize(self, column_data):
         """Map column values to token strings."""
 
     # ------------------------------------------------------------------

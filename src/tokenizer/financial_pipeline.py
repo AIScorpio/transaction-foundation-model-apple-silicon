@@ -1,18 +1,3 @@
-# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
-# SPDX-License-Identifier: Apache-2.0
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 """
 Pre-configured tokenizer pipeline for financial transaction data.
 
@@ -20,12 +5,11 @@ Standard 12-field tokenizer pipeline:
     AMT  MERCH  CAT  MCC  HOUR  DOW  MONTH  CARD  CHIP  ZIP3  STATE  CUST
 
 Optional extensions (disabled by default to keep a 12-token baseline):
-    - amount_strategy="quantile"  →  data-driven amount bins via cuML
+    - amount_strategy="quantile"  →  data-driven amount bins via sklearn
     - include_time_delta=True     →  log-compressed inter-transaction time
 """
 
-import cudf
-
+from .backend import DataFrame, hash_series, to_datetime
 from .pipeline import TokenizerPipeline
 from .fixed_vocab import FixedVocabTokenizer
 from .mapping import MappingTokenizer
@@ -91,7 +75,7 @@ class FinancialTokenizerPipeline(TokenizerPipeline):
         Number of hash buckets for merchant names.
     amount_strategy : {"fixed", "quantile", "uniform", "kmeans"}
         "fixed" uses 7 hard-coded dollar-amount thresholds (default).
-        Others delegate to NumericalTokenizerOptBin via cuML.
+        Others delegate to NumericalTokenizerOptBin via sklearn.
     amount_bins : int
         Number of bins when using a data-driven amount_strategy.
     include_time_delta : bool
@@ -120,9 +104,6 @@ class FinancialTokenizerPipeline(TokenizerPipeline):
         self._configure_steps()
 
     def _configure_steps(self) -> None:
-        """Add the standard 12 tokenizer steps (+ optional extras)."""
-
-        # 1. Amount
         if self.amount_strategy == "fixed":
             self.add_step("amt_val", FixedVocabTokenizer(
                 prefix="AMT", min_val=0, max_val=6,
@@ -134,27 +115,23 @@ class FinancialTokenizerPipeline(TokenizerPipeline):
                 strategy=self.amount_strategy,
             ))
 
-        # 2. Merchant (hash)
         self.add_step("merch_hash", CategoricalHashTokenizer(
             vocab_limit=self.merchant_hash_size,
             special_token="MERCH",
         ))
 
-        # 3. Industry category (derived from MCC via range lookup)
         self.add_step("mcc_int", MappingTokenizer(
             prefix="CAT",
             ranges=INDUSTRY_RANGES,
             default="GENERAL",
         ))
 
-        # 4. MCC code (known codes from TabFormer + catch-all default)
         self.add_step("mcc_str", MappingTokenizer(
             prefix="MCC",
             values=[str(m) for m in KNOWN_MCCS],
             default="-1",
         ))
 
-        # 5-7. Temporal: HOUR, DOW, MONTH
         self.add_step("hour", FixedVocabTokenizer(
             prefix="HOUR", min_val=0, max_val=23, pad_width=2,
         ))
@@ -165,36 +142,30 @@ class FinancialTokenizerPipeline(TokenizerPipeline):
             prefix="MONTH", min_val=1, max_val=12, pad_width=2,
         ))
 
-        # 8. Card index
         self.add_step("card", FixedVocabTokenizer(
             prefix="CARD", min_val=0, max_val=9,
         ))
 
-        # 9. Chip type
         self.add_step("chip_upper", MappingTokenizer(
             prefix="CHIP",
             mapping=CHIP_MAPPING,
             default="UNK",
         ))
 
-        # 10. ZIP3 region
         self.add_step("zip3", FixedVocabTokenizer(
             prefix="ZIP3", min_val=0, max_val=999, pad_width=3,
         ))
 
-        # 11. State
         self.add_step("state_clean", MappingTokenizer(
             prefix="STATE",
             values=ALL_STATES,
             default="XX",
         ))
 
-        # 12. Customer ID
         self.add_step("cust", FixedVocabTokenizer(
             prefix="CUST", min_val=0, max_val=2999,
         ))
 
-        # Optional: time delta
         if self.include_time_delta:
             self.add_step("time_delta_s", TimeDeltaTokenizer(
                 num_bins=self.time_delta_bins,
@@ -206,9 +177,9 @@ class FinancialTokenizerPipeline(TokenizerPipeline):
     # ------------------------------------------------------------------
 
     @staticmethod
-    def preprocess(df: cudf.DataFrame) -> cudf.DataFrame:
+    def preprocess(df: DataFrame) -> DataFrame:
         """Normalize columns and derive intermediate fields expected by the
-        pipeline steps.  Operates in-place on a cuDF DataFrame.
+        pipeline steps.  Operates in-place on a pandas-compatible DataFrame.
 
         Input columns (TabFormer naming): Amount, Merchant Name, MCC,
         Year, Month, Day, Time, Card, Use Chip, Zip, Merchant State, User.
@@ -237,7 +208,7 @@ class FinancialTokenizerPipeline(TokenizerPipeline):
             .str.upper()
             .str.replace(r"[^A-Z0-9\s\-]", "", regex=True)
         )
-        df["merch_hash"] = merch_clean.hash_values()
+        df["merch_hash"] = hash_series(merch_clean)
 
         mcc = df["mcc"].fillna(-1).astype(int)
         df["mcc_int"] = mcc
@@ -249,7 +220,7 @@ class FinancialTokenizerPipeline(TokenizerPipeline):
             + df["day"].astype(str).str.zfill(2) + " "
             + df["time"].fillna("00:00").astype(str)
         )
-        dt = cudf.to_datetime(date_str, format="%Y-%m-%d %H:%M")
+        dt = to_datetime(date_str, format="%Y-%m-%d %H:%M")
         df["hour"] = dt.dt.hour
         df["dow"] = dt.dt.dayofweek
         df["month"] = dt.dt.month
