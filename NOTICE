@@ -1,0 +1,28 @@
+Transaction Foundation Model for Apple Silicon
+
+This repository is an independent Apple Silicon adaptation of NVIDIA's
+Transaction Foundation Model developer example:
+
+  https://github.com/NVIDIA-AI-Blueprints/transaction-foundation-model
+
+Original upstream work:
+
+  Copyright NVIDIA Corporation and affiliates.
+  Licensed under the Apache License, Version 2.0.
+
+Apple Silicon adaptation work:
+
+  Copyright 2026 AIScorpio.
+  Licensed under the Apache License, Version 2.0.
+
+Major adaptation areas include:
+
+  - macOS / Apple Silicon dependency set in requirements-mac.txt
+  - tokenizer backend abstraction for pandas, NumPy, scikit-learn, and mmh3
+  - removal of hard runtime dependency on cuDF, CuPy, and cuML for the local path
+  - Hugging Face Trainer script for local decoder training demos
+  - MPS-aware decoder inference device selection
+  - notebook updates for local Apple Silicon experimentation
+
+NVIDIA, CUDA, RAPIDS, NeMo, and related names are trademarks or product names of
+their respective owners. This fork is not an NVIDIA release.

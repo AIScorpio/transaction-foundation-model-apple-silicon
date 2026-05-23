@@ -1,24 +1,15 @@
 ## Security
 
-NVIDIA is dedicated to the security and trust of our software products and services, including all source code repositories managed through our organization.
+This repository is an independent Apple Silicon adaptation of NVIDIA's
+Transaction Foundation Model developer example.
 
-If you need to report a security issue, please use the appropriate contact points outlined below. **Please do not report security vulnerabilities through GitHub.**
+Please do not report issues for this fork through NVIDIA product security
+channels unless the issue affects an NVIDIA product or the original upstream
+repository.
 
-## Reporting Potential Security Vulnerability in an NVIDIA Product
+For issues in this fork, use GitHub Issues or GitHub Security Advisories on:
 
-To report a potential security vulnerability in any NVIDIA product:
-- Web: [Security Vulnerability Submission Form](https://www.nvidia.com/object/submit-security-vulnerability.html)
-- E-Mail: psirt@nvidia.com
-    - We encourage you to use the following PGP key for secure email communication: [NVIDIA public PGP Key for communication](https://www.nvidia.com/en-us/security/pgp-key)
-    - Please include the following information:
-   	 - Product/Driver name and version/branch that contains the vulnerability
-     - Type of vulnerability (code execution, denial of service, buffer overflow, etc.)
-   	 - Instructions to reproduce the vulnerability
-   	 - Proof-of-concept or exploit code
-   	 - Potential impact of the vulnerability, including how an attacker could exploit the vulnerability
+https://github.com/AIScorpio/transaction-foundation-model-apple-silicon
 
-While NVIDIA currently does not have a bug bounty program, we do offer acknowledgement when an externally reported security issue is addressed under our coordinated vulnerability disclosure policy. Please visit our [Product Security Incident Response Team (PSIRT)](https://www.nvidia.com/en-us/security/psirt-policies/) policies page for more information.
-
-## NVIDIA Product Security
-
-For all security-related concerns, please visit NVIDIA's Product Security portal at https://www.nvidia.com/en-us/security
+For issues in the original NVIDIA project, refer to the upstream repository and
+NVIDIA's published security reporting process.
